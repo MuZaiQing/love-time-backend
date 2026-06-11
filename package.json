@@ -1,13 +1,21 @@
 {
   "name": "lovetime",
   "version": "1.0.0",
-  "description": "情侣相恋时长与纪念日记录网页",
+  "type": "module",
   "scripts": {
-    "dev": "npx serve .",
-    "start": "npx serve . -l 3000",
-    "preview": "npx serve . -l 3000"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
-  "keywords": ["love", "anniversary", "countdown", "couple"],
-  "author": "",
-  "license": "MIT"
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.8",
+    "lucide-vue-next": "^1.0.0",
+    "pinia": "^2.1.7",
+    "vue": "^3.4.21"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.14",
+    "@vitejs/plugin-vue": "^6.0.7",
+    "vite": "^5.1.4"
+  }
 }
