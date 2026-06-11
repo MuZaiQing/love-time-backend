@@ -1,0 +1,2089 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0F0E1A">
+  <meta name="description" content="记录情侣相恋时长与重要纪念日">
+  <title>LoveTime - 相恋时长记录</title>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+  <!-- p5.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    :root {
+      /* Light Mode */
+      --primary: #6366F1;
+      --secondary: #8B5CF6;
+      --accent: #EC4899;
+      --bg: #FAFAFE;
+      --card-bg: rgba(255, 255, 255, 0.85);
+      --text-primary: #1E1B4B;
+      --text-secondary: #6B7280;
+      --glow-primary: rgba(236, 72, 153, 0.25);
+      --glow-secondary: rgba(139, 92, 246, 0.2);
+      --border: rgba(99, 102, 241, 0.15);
+      --shadow: rgba(99, 102, 241, 0.1);
+      --flow-primary: rgba(236, 72, 153, 0.12);
+      --flow-secondary: rgba(139, 92, 246, 0.1);
+    }
+
+    [data-theme="dark"] {
+      --primary: #818CF8;
+      --secondary: #A78BFA;
+      --accent: #F472B6;
+      --bg: #0F0E1A;
+      --card-bg: rgba(30, 27, 75, 0.85);
+      --text-primary: #F1F5F9;
+      --text-secondary: #94A3B8;
+      --glow-primary: rgba(165, 180, 252, 0.3);
+      --glow-secondary: rgba(103, 232, 249, 0.2);
+      --border: rgba(129, 140, 248, 0.2);
+      --shadow: rgba(0, 0, 0, 0.3);
+      --flow-primary: rgba(165, 180, 252, 0.15);
+      --flow-secondary: rgba(103, 232, 249, 0.1);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      overflow-x: hidden;
+    }
+
+    body {
+      font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background-color: var(--bg);
+      color: var(--text-primary);
+      line-height: 1.6;
+      transition: background-color 0.3s ease, color 0.3s ease;
+      min-height: 100vh;
+      min-height: 100dvh;
+    }
+
+    /* p5.js Canvas Container */
+    #p5-canvas-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    #p5-canvas-container canvas {
+      display: block;
+    }
+
+    /* Main App Container */
+    .app-container {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Navigation */
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-brand {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .nav-btn {
+      width: 40px;
+      height: 40px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      border-radius: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .nav-btn:hover {
+      background: var(--border);
+      color: var(--primary);
+    }
+
+    .nav-btn:active {
+      transform: scale(0.95);
+    }
+
+    /* User Avatar */
+    .user-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 500;
+      font-size: 14px;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .user-avatar:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 12px var(--shadow);
+    }
+
+    /* Main Content */
+    .main-content {
+      flex: 1;
+      padding: 24px 16px;
+      max-width: 480px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* Timer Card */
+    .timer-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      border-radius: 32px;
+      padding: 32px 24px;
+      margin-bottom: 24px;
+      border: 1px solid var(--border);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .timer-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px var(--shadow);
+    }
+
+    /* Breathing Glow Effect */
+    .timer-card::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle at center, var(--glow-primary) 0%, transparent 50%);
+      animation: breathe 4s ease-in-out infinite;
+      pointer-events: none;
+    }
+
+    .timer-card::after {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle at center, var(--glow-secondary) 0%, transparent 60%);
+      animation: breathe 4s ease-in-out infinite 1s;
+      pointer-events: none;
+    }
+
+    @keyframes breathe {
+      0%, 100% {
+        opacity: 0.4;
+        transform: scale(0.9);
+      }
+      50% {
+        opacity: 0.8;
+        transform: scale(1.1);
+      }
+    }
+
+    .timer-content {
+      position: relative;
+      z-index: 1;
+    }
+
+    .timer-days {
+      font-family: "DIN Alternate", "Roboto Mono", monospace;
+      font-size: 72px;
+      font-weight: 300;
+      color: var(--text-primary);
+      line-height: 1;
+      margin-bottom: 8px;
+      letter-spacing: -2px;
+    }
+
+    .timer-days-suffix {
+      font-size: 24px;
+      color: var(--accent);
+      margin-left: 4px;
+    }
+
+    .timer-label {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+    }
+
+    .timer-date {
+      font-size: 13px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .timer-date span {
+      color: var(--primary);
+      font-weight: 500;
+    }
+
+    .timer-details {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .timer-detail {
+      text-align: center;
+    }
+
+    .timer-detail-value {
+      font-family: "DIN Alternate", "Roboto Mono", monospace;
+      font-size: 20px;
+      color: var(--text-primary);
+    }
+
+    .timer-detail-label {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    /* Couple Info */
+    .couple-info {
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 24px;
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .couple-avatars {
+      display: flex;
+      align-items: center;
+    }
+
+    .couple-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 500;
+      font-size: 14px;
+      border: 2px solid var(--card-bg);
+    }
+
+    .couple-avatar:last-child {
+      margin-left: -12px;
+      background: linear-gradient(135deg, var(--secondary), var(--accent));
+    }
+
+    .couple-text {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    .couple-text strong {
+      color: var(--text-primary);
+    }
+
+    /* Section Header */
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    /* Anniversary List */
+    .anniversary-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .anniversary-item {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border-radius: 16px;
+      padding: 16px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+                  box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+                  opacity 0.3s ease;
+      opacity: 0;
+      animation: fadeInUp 0.4s ease forwards;
+    }
+
+    .anniversary-item:hover {
+      transform: scale(1.02);
+      box-shadow: 0 4px 20px var(--shadow);
+    }
+
+    .anniversary-item:active {
+      transform: scale(0.98);
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .anniversary-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+
+    .anniversary-name {
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .anniversary-type {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 8px;
+      background: var(--border);
+      color: var(--text-secondary);
+    }
+
+    .anniversary-countdown {
+      font-family: "DIN Alternate", "Roboto Mono", monospace;
+      font-size: 28px;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    .anniversary-countdown.special {
+      color: var(--primary);
+    }
+
+    .anniversary-countdown-label {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .anniversary-date {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 6px;
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 48px 24px;
+      opacity: 0;
+      animation: fadeIn 0.5s ease 0.2s forwards;
+    }
+
+    @keyframes fadeIn {
+      to { opacity: 1; }
+    }
+
+    .empty-icon {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 16px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      opacity: 0.8;
+    }
+
+    .empty-title {
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+
+    .empty-text {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    /* FAB */
+    .fab {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      border: none;
+      color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 20px var(--shadow);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      z-index: 50;
+    }
+
+    .fab:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 32px var(--shadow);
+    }
+
+    .fab:active {
+      transform: translateY(0) scale(0.95);
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.2s ease, visibility 0.2s ease;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal {
+      background: var(--card-bg);
+      backdrop-filter: blur(20px);
+      border-radius: 24px;
+      width: 100%;
+      max-width: 360px;
+      max-height: 90vh;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      transform: translateY(20px);
+      transition: transform 0.2s ease;
+    }
+
+    .modal-overlay.active .modal {
+      transform: translateY(0);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .modal-close {
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s ease;
+    }
+
+    .modal-close:hover {
+      background: var(--border);
+    }
+
+    .modal-body {
+      padding: 24px;
+    }
+
+    /* Form */
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--bg);
+      color: var(--text-primary);
+      font-size: 15px;
+      font-family: inherit;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--glow-primary);
+    }
+
+    .form-input::placeholder {
+      color: var(--text-secondary);
+      opacity: 0.6;
+    }
+
+    .form-select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 40px;
+    }
+
+    /* Buttons */
+    .btn {
+      width: 100%;
+      padding: 14px 24px;
+      border: none;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      box-shadow: 0 4px 16px var(--shadow);
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 6px 24px var(--shadow);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+    }
+
+    .btn-secondary:hover {
+      background: var(--border);
+    }
+
+    .btn-danger {
+      background: #EF4444;
+      color: white;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-secondary);
+    }
+
+    .btn-ghost:hover {
+      background: var(--border);
+      color: var(--text-primary);
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .btn-group .btn {
+      flex: 1;
+    }
+
+    /* Auth Panel */
+    .auth-panel {
+      text-align: center;
+      padding: 32px 0;
+    }
+
+    .auth-logo {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 16px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+    }
+
+    .auth-title {
+      font-size: 24px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+
+    .auth-desc {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 24px;
+    }
+
+    /* Invite Code Display */
+    .invite-code-box {
+      background: var(--bg);
+      border-radius: 12px;
+      padding: 20px;
+      margin: 20px 0;
+      text-align: center;
+    }
+
+    .invite-code-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    .invite-code {
+      font-family: "DIN Alternate", "Roboto Mono", monospace;
+      font-size: 32px;
+      font-weight: 600;
+      color: var(--primary);
+      letter-spacing: 8px;
+    }
+
+    .invite-code-hint {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 8px;
+    }
+
+    /* Couple Settings */
+    .couple-status {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px;
+      background: var(--bg);
+      border-radius: 12px;
+      margin-bottom: 20px;
+    }
+
+    .couple-status-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+    }
+
+    .couple-status-info {
+      flex: 1;
+    }
+
+    .couple-status-name {
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .couple-status-relation {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    /* Toast */
+    .toast-container {
+      position: fixed;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 300;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .toast {
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      border-radius: 12px;
+      padding: 12px 20px;
+      border: 1px solid var(--border);
+      font-size: 14px;
+      color: var(--text-primary);
+      box-shadow: 0 4px 20px var(--shadow);
+      opacity: 0;
+      transform: translateY(20px);
+      animation: toastIn 0.3s ease forwards;
+      pointer-events: auto;
+    }
+
+    .toast.success {
+      border-color: #10B981;
+    }
+
+    .toast.error {
+      border-color: #EF4444;
+    }
+
+    @keyframes toastIn {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Loading Spinner */
+    .spinner {
+      width: 24px;
+      height: 24px;
+      border: 2px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 1;
+      transition: opacity 0.3s ease;
+    }
+
+    .loading-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* Confirm Dialog */
+    .confirm-dialog {
+      text-align: center;
+    }
+
+    .confirm-icon {
+      width: 48px;
+      height: 48px;
+      margin: 0 auto 16px;
+      border-radius: 50%;
+      background: #FEE2E2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #EF4444;
+    }
+
+    .confirm-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+
+    .confirm-text {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    /* Responsive */
+    @media (max-width: 380px) {
+      .timer-days {
+        font-size: 56px;
+      }
+
+      .timer-details {
+        gap: 16px;
+      }
+
+      .modal {
+        max-width: 320px;
+      }
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-secondary);
+    }
+  </style>
+</head>
+<body>
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner"></div>
+  </div>
+
+  <!-- p5.js Canvas Container -->
+  <div id="p5-canvas-container"></div>
+
+  <!-- Main App -->
+  <div class="app-container">
+    <!-- Navigation -->
+    <nav class="nav">
+      <div class="nav-brand">
+        <i data-lucide="heart-pulse" style="width:20px;height:20px;"></i>
+        LoveTime
+      </div>
+      <div class="nav-actions">
+        <button class="nav-btn" id="themeToggle" title="切换主题">
+          <i data-lucide="sun" style="width:20px;height:20px;" id="themeIcon"></i>
+        </button>
+        <div class="user-avatar" id="userAvatar" style="display:none;">
+          <span id="userInitial">?</span>
+        </div>
+        <button class="nav-btn" id="loginBtn">
+          <i data-lucide="log-in" style="width:20px;height:20px;"></i>
+        </button>
+        <button class="nav-btn" id="settingsBtn" style="display:none;">
+          <i data-lucide="settings" style="width:20px;height:20px;"></i>
+        </button>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content" id="mainContent">
+      <!-- Timer Card -->
+      <div class="timer-card" id="timerCard" style="display:none;">
+        <div class="timer-content">
+          <div class="timer-days">
+            <span id="daysCount">0</span><span class="timer-days-suffix">天</span>
+          </div>
+          <div class="timer-label">与你的缘分已走过</div>
+          <div class="timer-date">
+            <i data-lucide="calendar" style="width:14px;height:14px;"></i>
+            从 <span id="startDate">2024-01-01</span> 开始
+          </div>
+          <div class="timer-details">
+            <div class="timer-detail">
+              <div class="timer-detail-value" id="hoursCount">0</div>
+              <div class="timer-detail-label">小时</div>
+            </div>
+            <div class="timer-detail">
+              <div class="timer-detail-value" id="minutesCount">0</div>
+              <div class="timer-detail-label">分钟</div>
+            </div>
+            <div class="timer-detail">
+              <div class="timer-detail-value" id="secondsCount">0</div>
+              <div class="timer-detail-label">秒</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Couple Info -->
+      <div class="couple-info" id="coupleInfo" style="display:none;">
+        <div class="couple-avatars">
+          <div class="couple-avatar" id="avatar1">?</div>
+          <div class="couple-avatar" id="avatar2">?</div>
+        </div>
+        <div class="couple-text">
+          <strong id="coupleStatusText">已绑定</strong>
+        </div>
+      </div>
+
+      <!-- Anniversary Section -->
+      <div id="anniversarySection" style="display:none;">
+        <div class="section-header">
+          <h2 class="section-title">纪念日</h2>
+        </div>
+        <div class="anniversary-list" id="anniversaryList"></div>
+      </div>
+
+      <!-- Empty State -->
+      <div class="empty-state" id="emptyState" style="display:none;">
+        <div class="empty-icon">
+          <i data-lucide="calendar-heart" style="width:36px;height:36px;"></i>
+        </div>
+        <div class="empty-title">还没有纪念日</div>
+        <div class="empty-text">点击右下角按钮添加你们的第一个纪念日</div>
+      </div>
+    </main>
+
+    <!-- FAB -->
+    <button class="fab" id="fabAdd" style="display:none;" title="添加纪念日">
+      <i data-lucide="plus" style="width:24px;height:24px;"></i>
+    </button>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Modal Overlay -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal" id="modalContent"></div>
+  </div>
+
+  <script>
+    // ========================
+    // Configuration
+    // ========================
+    const CONFIG = {
+      supabaseUrl: 'https://gqyolshqwlivoaewzmti.supabase.co',
+      supabaseAnonKey: 'sb_publishable_g8AS7w_oDmc4pNFTCJMWwA_RP7gd_An',
+      anonymousPrefix: '匿名用户'
+    };
+
+    // ========================
+    // Global State
+    // ========================
+    let supabaseClient = null;
+    let currentUser = null;
+    let currentCouple = null;
+    let anniversaries = [];
+    let isDarkMode = false;
+
+    // ========================
+    // DOM Elements
+    // ========================
+    const $ = (sel) => document.querySelector(sel);
+    const $$ = (sel) => document.querySelectorAll(sel);
+
+    // ========================
+    // Utility Functions
+    // ========================
+    function generateInviteCode() {
+      return Math.random().toString(36).substring(2, 8).toUpperCase();
+    }
+
+    function formatDate(dateStr) {
+      const date = new Date(dateStr);
+      return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+    }
+
+    function calculateDays(startDate) {
+      const start = new Date(startDate);
+      const now = new Date();
+      start.setHours(0, 0, 0, 0);
+      now.setHours(0, 0, 0, 0);
+      return Math.floor((now - start) / (1000 * 60 * 60 * 24));
+    }
+
+    function calculateCountdown(targetDate) {
+      const target = new Date(targetDate);
+      const now = new Date();
+      target.setFullYear(now.getFullYear());
+      if (target < now) {
+        target.setFullYear(now.getFullYear() + 1);
+      }
+      const diff = target - now;
+      return Math.ceil(diff / (1000 * 60 * 60 * 24));
+    }
+
+    function showToast(message, type = 'info') {
+      const container = $('#toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+      }, 2500);
+    }
+
+    // ========================
+    // IndexedDB for Offline Cache
+    // ========================
+    const DB_NAME = 'lovetime_db';
+    const DB_VERSION = 1;
+    let db = null;
+
+    async function initDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          db = request.result;
+          resolve(db);
+        };
+        request.onupgradeneeded = (e) => {
+          const database = e.target.result;
+          if (!database.objectStoreNames.contains('data')) {
+            database.createObjectStore('data', { keyPath: 'key' });
+          }
+        };
+      });
+    }
+
+    async function saveToLocal(key, value) {
+      if (!db) await initDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction('data', 'readwrite');
+        tx.objectStore('data').put({ key, value, timestamp: Date.now() });
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    async function loadFromLocal(key) {
+      if (!db) await initDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction('data', 'readonly');
+        const request = tx.objectStore('data').get(key);
+        request.onsuccess = () => resolve(request.result?.value);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    // ========================
+    // Supabase
+    // ========================
+    async function initSupabase() {
+      supabaseClient = window.supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseAnonKey);
+
+      supabaseClient.auth.onAuthStateChange(async (event, session) => {
+        if (session?.user) {
+          currentUser = session.user;
+          await handleUserLogin(session.user);
+        } else {
+          currentUser = null;
+          currentCouple = null;
+          anniversaries = [];
+          updateUIForLoggedOut();
+        }
+      });
+
+      // Check existing session
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (session?.user) {
+        currentUser = session.user;
+        await handleUserLogin(session.user);
+      } else {
+        updateUIForLoggedOut();
+      }
+    }
+
+    async function handleUserLogin(user) {
+      const nickname = user.user_metadata?.nickname || `${CONFIG.anonymousPrefix}${user.id.substring(0, 4)}`;
+      const avatarUrl = user.user_metadata?.avatar_url;
+
+      // Try to load from local first
+      const localData = await loadFromLocal('user_data');
+      if (localData) {
+        currentCouple = localData.couple;
+        anniversaries = localData.anniversaries || [];
+      }
+
+      // Fetch from server
+      await syncFromServer();
+
+      updateUIForLoggedIn(user, nickname);
+      await loadCoupleData();
+    }
+
+    async function syncFromServer() {
+      if (!currentUser || !currentCouple) return;
+
+      try {
+        const { data: serverAnniversaries } = await supabaseClient
+          .from('anniversaries')
+          .select('*')
+          .eq('couple_id', currentCouple.id)
+          .order('date', { ascending: true });
+
+        if (serverAnniversaries) {
+          anniversaries = serverAnniversaries;
+          await saveToLocal('user_data', {
+            couple: currentCouple,
+            anniversaries,
+            timestamp: Date.now()
+          });
+        }
+      } catch (err) {
+        console.warn('Sync failed, using local data:', err);
+      }
+    }
+
+    async function loadCoupleData() {
+      if (!currentUser) return;
+
+      // Load couple info
+      const { data: couples } = await supabaseClient
+        .from('couples')
+        .select('*')
+        .or(`user1_id.eq.${currentUser.id},user2_id.eq.${currentUser.id}`)
+        .single();
+
+      if (couples) {
+        currentCouple = couples;
+        await saveToLocal('user_data', {
+          couple: currentCouple,
+          anniversaries,
+          timestamp: Date.now()
+        });
+      }
+
+      updateUI();
+      hideLoading();
+    }
+
+    async function signInAnonymously() {
+      try {
+        const { data, error } = await supabaseClient.auth.signInAnonymously();
+        if (error) throw error;
+        showToast('登录成功', 'success');
+      } catch (err) {
+        showToast('登录失败: ' + err.message, 'error');
+      }
+    }
+
+    async function signOut() {
+      try {
+        await supabaseClient.auth.signOut();
+        showToast('已退出登录', 'info');
+      } catch (err) {
+        showToast('退出失败: ' + err.message, 'error');
+      }
+    }
+
+    // ========================
+    // Couple Operations
+    // ========================
+    async function createCouple(startDate) {
+      if (!currentUser) return;
+
+      const inviteCode = generateInviteCode();
+      const { data, error } = await supabaseClient
+        .from('couples')
+        .insert({
+          invite_code: inviteCode,
+          user1_id: currentUser.id,
+          start_date: startDate,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      currentCouple = data;
+      await loadCoupleData();
+      return data;
+    }
+
+    async function joinCouple(inviteCode) {
+      if (!currentUser) return;
+
+      // Find couple by invite code
+      const { data: couple, error: findError } = await supabaseClient
+        .from('couples')
+        .select('*')
+        .eq('invite_code', inviteCode.toUpperCase())
+        .single();
+
+      if (findError || !couple) {
+        throw new Error('邀请码无效');
+      }
+
+      if (couple.user2_id) {
+        throw new Error('该邀请码已被使用');
+      }
+
+      // Update couple
+      const { data, error } = await supabaseClient
+        .from('couples')
+        .update({ user2_id: currentUser.id })
+        .eq('id', couple.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      currentCouple = data;
+      await loadCoupleData();
+      return data;
+    }
+
+    async function updateStartDate(newDate) {
+      if (!currentCouple) return;
+
+      const { data, error } = await supabaseClient
+        .from('couples')
+        .update({ start_date: newDate })
+        .eq('id', currentCouple.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      currentCouple = data;
+      await saveToLocal('user_data', {
+        couple: currentCouple,
+        anniversaries,
+        timestamp: Date.now()
+      });
+      updateUI();
+    }
+
+    // ========================
+    // Anniversary Operations
+    // ========================
+    async function createAnniversary(name, date, type) {
+      if (!currentCouple) return;
+
+      const { data, error } = await supabaseClient
+        .from('anniversaries')
+        .insert({
+          couple_id: currentCouple.id,
+          name,
+          date,
+          type
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      anniversaries.push(data);
+      anniversaries.sort((a, b) => new Date(a.date) - new Date(b.date));
+      await saveToLocal('user_data', {
+        couple: currentCouple,
+        anniversaries,
+        timestamp: Date.now()
+      });
+      renderAnniversaries();
+      return data;
+    }
+
+    async function updateAnniversary(id, name, date, type) {
+      const { data, error } = await supabaseClient
+        .from('anniversaries')
+        .update({ name, date, type, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      const idx = anniversaries.findIndex(a => a.id === id);
+      if (idx !== -1) anniversaries[idx] = data;
+      anniversaries.sort((a, b) => new Date(a.date) - new Date(b.date));
+      await saveToLocal('user_data', {
+        couple: currentCouple,
+        anniversaries,
+        timestamp: Date.now()
+      });
+      renderAnniversaries();
+      return data;
+    }
+
+    async function deleteAnniversary(id) {
+      const { error } = await supabaseClient
+        .from('anniversaries')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      anniversaries = anniversaries.filter(a => a.id !== id);
+      await saveToLocal('user_data', {
+        couple: currentCouple,
+        anniversaries,
+        timestamp: Date.now()
+      });
+      renderAnniversaries();
+    }
+
+    // ========================
+    // UI Updates
+    // ========================
+    function updateUIForLoggedOut() {
+      $('#timerCard').style.display = 'none';
+      $('#coupleInfo').style.display = 'none';
+      $('#anniversarySection').style.display = 'none';
+      $('#emptyState').style.display = 'none';
+      $('#fabAdd').style.display = 'none';
+      $('#userAvatar').style.display = 'none';
+      $('#loginBtn').style.display = 'flex';
+      $('#settingsBtn').style.display = 'none';
+
+      showAuthModal();
+      hideLoading();
+    }
+
+    function updateUIForLoggedIn(user, nickname) {
+      $('#userAvatar').style.display = 'flex';
+      $('#userInitial').textContent = nickname.charAt(0).toUpperCase();
+      $('#loginBtn').style.display = 'none';
+      $('#settingsBtn').style.display = 'flex';
+    }
+
+    function updateUI() {
+      if (!currentUser) return;
+
+      if (currentCouple) {
+        // Show timer card
+        $('#timerCard').style.display = 'block';
+        $('#startDate').textContent = formatDate(currentCouple.start_date);
+
+        // Update timer
+        updateTimer();
+
+        // Show couple info
+        $('#coupleInfo').style.display = 'flex';
+        const partnerName = currentCouple.user1_id === currentUser.id ? 'TA' : '我';
+        $('#coupleStatusText').textContent = `${partnerName}们在一起`;
+
+        // Show FAB
+        $('#fabAdd').style.display = 'flex';
+
+        // Render anniversaries
+        renderAnniversaries();
+      } else {
+        // No couple yet
+        $('#timerCard').style.display = 'none';
+        $('#coupleInfo').style.display = 'none';
+        $('#anniversarySection').style.display = 'none';
+        $('#emptyState').style.display = 'none';
+        $('#fabAdd').style.display = 'none';
+
+        showCoupleSetupModal();
+      }
+    }
+
+    function updateTimer() {
+      if (!currentCouple) return;
+
+      const startDate = new Date(currentCouple.start_date);
+      const now = new Date();
+      const diff = now - startDate;
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      // Animate days change
+      animateNumber($('#daysCount'), days);
+      $('#hoursCount').textContent = hours;
+      $('#minutesCount').textContent = minutes;
+      $('#secondsCount').textContent = seconds;
+    }
+
+    function animateNumber(element, targetValue) {
+      const currentValue = parseInt(element.textContent) || 0;
+      if (currentValue === targetValue) return;
+
+      const diff = targetValue - currentValue;
+      const steps = 30;
+      const stepValue = diff / steps;
+      let step = 0;
+
+      const animate = () => {
+        step++;
+        const value = Math.round(currentValue + stepValue * step);
+        element.textContent = value;
+        if (step < steps) {
+          requestAnimationFrame(animate);
+        } else {
+          element.textContent = targetValue;
+        }
+      };
+
+      requestAnimationFrame(animate);
+    }
+
+    function renderAnniversaries() {
+      const section = $('#anniversarySection');
+      const list = $('#anniversaryList');
+      const empty = $('#emptyState');
+
+      if (!currentCouple) {
+        section.style.display = 'none';
+        empty.style.display = 'none';
+        return;
+      }
+
+      if (anniversaries.length === 0) {
+        section.style.display = 'none';
+        empty.style.display = 'block';
+        return;
+      }
+
+      section.style.display = 'block';
+      empty.style.display = 'none';
+      list.innerHTML = '';
+
+      anniversaries.forEach((item, index) => {
+        const countdown = calculateCountdown(item.date);
+        const isSpecial = countdown <= 7;
+
+        const el = document.createElement('div');
+        el.className = 'anniversary-item';
+        el.style.animationDelay = `${index * 0.1}s`;
+        el.innerHTML = `
+          <div class="anniversary-header">
+            <div class="anniversary-name">${item.name}</div>
+            <span class="anniversary-type">${item.type === 'anniversary' ? '纪念日' : item.type === 'birthday' ? '生日' : '其他'}</span>
+          </div>
+          <div class="anniversary-countdown ${isSpecial ? 'special' : ''}">${countdown}</div>
+          <div class="anniversary-countdown-label">天后</div>
+          <div class="anniversary-date">${formatDate(item.date)}</div>
+        `;
+
+        el.addEventListener('click', () => showEditAnniversaryModal(item));
+        list.appendChild(el);
+      });
+    }
+
+    // ========================
+    // Modal System
+    // ========================
+    function showModal(content) {
+      $('#modalContent').innerHTML = content;
+      $('#modalOverlay').classList.add('active');
+      lucide.createIcons();
+    }
+
+    function hideModal() {
+      $('#modalOverlay').classList.remove('active');
+    }
+
+    function showAuthModal() {
+      showModal(`
+        <div class="auth-panel">
+          <div class="auth-logo">
+            <i data-lucide="heart-pulse" style="width:32px;height:32px;"></i>
+          </div>
+          <h2 class="auth-title">LoveTime</h2>
+          <p class="auth-desc">记录你们相爱的每一天</p>
+          <button class="btn btn-primary" onclick="signInAnonymously()">
+            <i data-lucide="sparkles" style="width:18px;height:18px;"></i>
+            匿名登录
+          </button>
+          <p style="font-size:12px;color:var(--text-secondary);margin-top:16px;">
+            登录后可同步数据到云端
+          </p>
+        </div>
+      `);
+    }
+
+    function showCoupleSetupModal() {
+      showModal(`
+        <div class="auth-panel">
+          <div class="auth-logo">
+            <i data-lucide="users" style="width:32px;height:32px;"></i>
+          </div>
+          <h2 class="auth-title">创建情侣绑定</h2>
+          <p class="auth-desc">设置你们的相识日期，生成邀请码让TA加入</p>
+          <div class="form-group">
+            <label class="form-label">相识日期</label>
+            <input type="date" class="form-input" id="setupStartDate" value="2024-01-01">
+          </div>
+          <button class="btn btn-primary" onclick="handleCreateCouple()">
+            <i data-lucide="plus" style="width:18px;height:18px;"></i>
+            创建绑定
+          </button>
+          <div style="margin-top:24px;padding-top:24px;border-top:1px solid var(--border);">
+            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">或输入邀请码加入</p>
+            <div class="form-group">
+              <input type="text" class="form-input" id="joinInviteCode" placeholder="输入6位邀请码" maxlength="6" style="text-transform:uppercase;text-align:center;letter-spacing:4px;">
+            </div>
+            <button class="btn btn-secondary" onclick="handleJoinCouple()">
+              <i data-lucide="log-in" style="width:18px;height:18px;"></i>
+              加入绑定
+            </button>
+          </div>
+        </div>
+      `);
+    }
+
+    async function handleCreateCouple() {
+      const startDate = $('#setupStartDate').value;
+      if (!startDate) {
+        showToast('请选择日期', 'error');
+        return;
+      }
+      try {
+        await createCouple(startDate);
+        hideModal();
+        showToast('创建成功', 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function handleJoinCouple() {
+      const code = $('#joinInviteCode').value.trim();
+      if (!code) {
+        showToast('请输入邀请码', 'error');
+        return;
+      }
+      try {
+        await joinCouple(code);
+        hideModal();
+        showToast('加入成功', 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function showInviteCodeModal() {
+      if (!currentCouple) return;
+
+      showModal(`
+        <div class="modal-header">
+          <h3 class="modal-title">邀请TA</h3>
+          <button class="modal-close" onclick="hideModal()">
+            <i data-lucide="x" style="width:20px;height:20px;"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p style="text-align:center;color:var(--text-secondary);margin-bottom:16px;">
+            将此邀请码发送给另一半
+          </p>
+          <div class="invite-code-box">
+            <div class="invite-code-label">邀请码</div>
+            <div class="invite-code">${currentCouple.invite_code}</div>
+            <div class="invite-code-hint">有效期无限</div>
+          </div>
+          <button class="btn btn-secondary" onclick="copyInviteCode()">
+            <i data-lucide="copy" style="width:18px;height:18px;"></i>
+            复制邀请码
+          </button>
+        </div>
+      `);
+    }
+
+    function copyInviteCode() {
+      if (!currentCouple) return;
+      navigator.clipboard.writeText(currentCouple.invite_code);
+      showToast('已复制', 'success');
+    }
+
+    function showAddAnniversaryModal() {
+      showModal(`
+        <div class="modal-header">
+          <h3 class="modal-title">添加纪念日</h3>
+          <button class="modal-close" onclick="hideModal()">
+            <i data-lucide="x" style="width:20px;height:20px;"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">名称</label>
+            <input type="text" class="form-input" id="annivName" placeholder="如：第一次约会">
+          </div>
+          <div class="form-group">
+            <label class="form-label">日期</label>
+            <input type="date" class="form-input" id="annivDate">
+          </div>
+          <div class="form-group">
+            <label class="form-label">类型</label>
+            <select class="form-input form-select" id="annivType">
+              <option value="anniversary">纪念日</option>
+              <option value="birthday">生日</option>
+              <option value="other">其他</option>
+            </select>
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-secondary" onclick="hideModal()">取消</button>
+            <button class="btn btn-primary" onclick="handleAddAnniversary()">保存</button>
+          </div>
+        </div>
+      `);
+    }
+
+    async function handleAddAnniversary() {
+      const name = $('#annivName').value.trim();
+      const date = $('#annivDate').value;
+      const type = $('#annivType').value;
+
+      if (!name || !date) {
+        showToast('请填写名称和日期', 'error');
+        return;
+      }
+
+      try {
+        await createAnniversary(name, date, type);
+        hideModal();
+        showToast('添加成功', 'success');
+      } catch (err) {
+        showToast('添加失败: ' + err.message, 'error');
+      }
+    }
+
+    function showEditAnniversaryModal(item) {
+      showModal(`
+        <div class="modal-header">
+          <h3 class="modal-title">编辑纪念日</h3>
+          <button class="modal-close" onclick="hideModal()">
+            <i data-lucide="x" style="width:20px;height:20px;"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">名称</label>
+            <input type="text" class="form-input" id="editAnnivName" value="${item.name}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">日期</label>
+            <input type="date" class="form-input" id="editAnnivDate" value="${item.date}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">类型</label>
+            <select class="form-input form-select" id="editAnnivType">
+              <option value="anniversary" ${item.type === 'anniversary' ? 'selected' : ''}>纪念日</option>
+              <option value="birthday" ${item.type === 'birthday' ? 'selected' : ''}>生日</option>
+              <option value="other" ${item.type === 'other' ? 'selected' : ''}>其他</option>
+            </select>
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-danger" onclick="showDeleteConfirm('${item.id}')">删除</button>
+            <button class="btn btn-primary" onclick="handleUpdateAnniversary('${item.id}')">保存</button>
+          </div>
+        </div>
+      `);
+    }
+
+    async function handleUpdateAnniversary(id) {
+      const name = $('#editAnnivName').value.trim();
+      const date = $('#editAnnivDate').value;
+      const type = $('#editAnnivType').value;
+
+      if (!name || !date) {
+        showToast('请填写名称和日期', 'error');
+        return;
+      }
+
+      try {
+        await updateAnniversary(id, name, date, type);
+        hideModal();
+        showToast('更新成功', 'success');
+      } catch (err) {
+        showToast('更新失败: ' + err.message, 'error');
+      }
+    }
+
+    function showDeleteConfirm(id) {
+      showModal(`
+        <div class="modal-body">
+          <div class="confirm-dialog">
+            <div class="confirm-icon">
+              <i data-lucide="trash-2" style="width:24px;height:24px;"></i>
+            </div>
+            <h3 class="confirm-title">确认删除</h3>
+            <p class="confirm-text">删除后无法恢复，确定要删除这个纪念日吗？</p>
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-secondary" onclick="showEditAnniversaryModal(anniversaries.find(a => a.id === '${id}'))">取消</button>
+            <button class="btn btn-danger" onclick="handleDeleteAnniversary('${id}')">删除</button>
+          </div>
+        </div>
+      `);
+    }
+
+    async function handleDeleteAnniversary(id) {
+      try {
+        await deleteAnniversary(id);
+        hideModal();
+        showToast('已删除', 'success');
+      } catch (err) {
+        showToast('删除失败: ' + err.message, 'error');
+      }
+    }
+
+    function showSettingsModal() {
+      showModal(`
+        <div class="modal-header">
+          <h3 class="modal-title">设置</h3>
+          <button class="modal-close" onclick="hideModal()">
+            <i data-lucide="x" style="width:20px;height:20px;"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">相识日期</label>
+            <input type="date" class="form-input" id="editStartDate" value="${currentCouple?.start_date || ''}">
+          </div>
+          <button class="btn btn-secondary" style="margin-bottom:12px;" onclick="updateStartDateFromModal()">
+            <i data-lucide="check" style="width:18px;height:18px;"></i>
+            更新日期
+          </button>
+
+          <div style="margin-top:24px;padding-top:24px;border-top:1px solid var(--border);">
+            <button class="btn btn-secondary" onclick="showInviteCodeModal()">
+              <i data-lucide="share-2" style="width:18px;height:18px;"></i>
+              邀请TA加入
+            </button>
+          </div>
+
+          <div style="margin-top:24px;padding-top:24px;border-top:1px solid var(--border);">
+            <button class="btn btn-ghost" onclick="hideModal();signOut();">
+              <i data-lucide="log-out" style="width:18px;height:18px;"></i>
+              退出登录
+            </button>
+          </div>
+        </div>
+      `);
+    }
+
+    async function updateStartDateFromModal() {
+      const newDate = $('#editStartDate').value;
+      if (!newDate) {
+        showToast('请选择日期', 'error');
+        return;
+      }
+      try {
+        await updateStartDate(newDate);
+        hideModal();
+        showToast('日期已更新', 'success');
+      } catch (err) {
+        showToast('更新失败: ' + err.message, 'error');
+      }
+    }
+
+    // ========================
+    // Theme
+    // ========================
+    function initTheme() {
+      const savedTheme = localStorage.getItem('theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+      isDarkMode = savedTheme ? savedTheme === 'dark' : prefersDark;
+      applyTheme();
+    }
+
+    function applyTheme() {
+      document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
+      const icon = isDarkMode ? 'moon' : 'sun';
+      $('#themeIcon').setAttribute('data-lucide', icon);
+      lucide.createIcons();
+      localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+    }
+
+    function toggleTheme() {
+      isDarkMode = !isDarkMode;
+      applyTheme();
+    }
+
+    // ========================
+    // Loading
+    // ========================
+    function hideLoading() {
+      $('#loadingOverlay').classList.add('hidden');
+    }
+
+    // ========================
+    // Event Listeners
+    // ========================
+    function initEventListeners() {
+      // Theme toggle
+      $('#themeToggle').addEventListener('click', toggleTheme);
+
+      // Login
+      $('#loginBtn').addEventListener('click', () => {
+        if (!currentUser) {
+          showAuthModal();
+        }
+      });
+
+      // User avatar
+      $('#userAvatar').addEventListener('click', showSettingsModal);
+
+      // Settings
+      $('#settingsBtn').addEventListener('click', showSettingsModal);
+
+      // FAB
+      $('#fabAdd').addEventListener('click', showAddAnniversaryModal);
+
+      // Timer card click
+      $('#timerCard').addEventListener('click', () => {
+        if (currentCouple) {
+          showSettingsModal();
+        }
+      });
+
+      // Modal overlay click
+      $('#modalOverlay').addEventListener('click', (e) => {
+        if (e.target === $('#modalOverlay')) {
+          hideModal();
+        }
+      });
+
+      // Listen for auth state changes
+      if (supabaseClient) {
+        supabaseClient.auth.onAuthStateChange((event, session) => {
+          if (event === 'SIGNED_IN' && session?.user) {
+            currentUser = session.user;
+            handleUserLogin(session.user);
+          } else if (event === 'SIGNED_OUT') {
+            currentUser = null;
+            currentCouple = null;
+            anniversaries = [];
+            updateUIForLoggedOut();
+          }
+        });
+      }
+    }
+
+    // ========================
+    // Timer Update Loop
+    // ========================
+    function startTimerLoop() {
+      setInterval(updateTimer, 1000);
+    }
+
+    // ========================
+    // Initialize
+    // ========================
+    async function init() {
+      initTheme();
+      await initDB();
+      await initSupabase();
+      initEventListeners();
+      startTimerLoop();
+
+      // Initialize icons
+      lucide.createIcons();
+
+      // Hide loading after init
+      setTimeout(hideLoading, 500);
+    }
+
+    // Start app
+    init();
+
+    // ========================
+    // p5.js Flow Field Background
+    // ========================
+    const sketch = (p) => {
+      let particles = [];
+      const particleCount = window.innerWidth < 768 ? 40 : 70;
+      const flowScale = 0.003;
+      const noiseSpeed = 0.0003;
+      let time = 0;
+
+      class Particle {
+        constructor() {
+          this.reset();
+        }
+
+        reset() {
+          this.x = p.random(p.width);
+          this.y = p.random(p.height);
+          this.prevX = this.x;
+          this.prevY = this.y;
+          this.life = p.random(150, 300);
+          this.maxLife = this.life;
+          this.speed = p.random(0.3, 0.8);
+          this.alpha = p.random(0.03, 0.08);
+        }
+
+        update() {
+          this.prevX = this.x;
+          this.prevY = this.y;
+
+          // Get flow field angle
+          const angle = p.noise(this.x * flowScale, this.y * flowScale, time) * p.TWO_PI * 2;
+
+          // Move
+          this.x += Math.cos(angle) * this.speed;
+          this.y += Math.sin(angle) * this.speed;
+
+          // Decrease life
+          this.life--;
+
+          // Reset if dead or out of bounds
+          if (this.life <= 0 || this.x < 0 || this.x > p.width || this.y < 0 || this.y > p.height) {
+            this.reset();
+          }
+        }
+
+        draw() {
+          const lifeRatio = this.life / this.maxLife;
+          const alpha = this.alpha * lifeRatio;
+
+          // Get theme-based colors
+          const primaryColor = isDarkMode ?
+            p.color(165, 180, 252, alpha * 255) :
+            p.color(236, 72, 153, alpha * 255);
+          const secondaryColor = isDarkMode ?
+            p.color(103, 232, 249, alpha * 255) :
+            p.color(139, 92, 246, alpha * 255);
+
+          // Interpolate color based on position
+          const t = p.noise(this.x * 0.001, this.y * 0.001);
+          const c = p.lerpColor(primaryColor, secondaryColor, t);
+
+          p.stroke(c);
+          p.strokeWeight(0.5);
+          p.line(this.prevX, this.prevY, this.x, this.y);
+        }
+      }
+
+      p.setup = function() {
+        const canvas = p.createCanvas(p.windowWidth, p.windowHeight);
+        canvas.parent('p5-canvas-container');
+        p.colorMode(p.RGB, 255, 255, 255, 1);
+
+        // Initialize particles
+        for (let i = 0; i < particleCount; i++) {
+          particles.push(new Particle());
+        }
+      };
+
+      p.draw = function() {
+        // Semi-transparent background for trails
+        const bgAlpha = isDarkMode ? 0.05 : 0.03;
+        p.background(isDarkMode ? 15 : 250, isDarkMode ? 14 : 254, isDarkMode ? 26 : 254, bgAlpha);
+
+        // Update and draw particles
+        for (const particle of particles) {
+          particle.update();
+          particle.draw();
+        }
+
+        // Slowly increase time
+        time += noiseSpeed;
+      };
+
+      p.windowResized = function() {
+        p.resizeCanvas(p.windowWidth, p.windowHeight);
+      };
+    };
+
+    // Create p5 instance
+    new p5(sketch);
+
+    // Expose functions to global scope for onclick handlers
+    window.signInAnonymously = signInAnonymously;
+    window.signOut = signOut;
+    window.handleCreateCouple = handleCreateCouple;
+    window.handleJoinCouple = handleJoinCouple;
+    window.copyInviteCode = copyInviteCode;
+    window.showInviteCodeModal = showInviteCodeModal;
+    window.showAddAnniversaryModal = showAddAnniversaryModal;
+    window.handleAddAnniversary = handleAddAnniversary;
+    window.showEditAnniversaryModal = showEditAnniversaryModal;
+    window.handleUpdateAnniversary = handleUpdateAnniversary;
+    window.showDeleteConfirm = showDeleteConfirm;
+    window.handleDeleteAnniversary = handleDeleteAnniversary;
+    window.updateStartDateFromModal = updateStartDateFromModal;
+    window.hideModal = hideModal;
+    window.anniversaries = () => anniversaries;
+    window.currentCouple = () => currentCouple;
+  </script>
+</body>
+</html>

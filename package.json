@@ -1,0 +1,13 @@
+{
+  "name": "lovetime",
+  "version": "1.0.0",
+  "description": "情侣相恋时长与纪念日记录网页",
+  "scripts": {
+    "dev": "npx serve .",
+    "start": "npx serve . -l 3000",
+    "preview": "npx serve . -l 3000"
+  },
+  "keywords": ["love", "anniversary", "countdown", "couple"],
+  "author": "",
+  "license": "MIT"
+}
