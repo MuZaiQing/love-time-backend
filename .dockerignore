@@ -1,0 +1,9 @@
+node_modules/
+.git/
+.env
+.gitignore
+.railwayignore
+package-lock.json.bak
+npm-debug.log
+Dockerfile
+.dockerignore
