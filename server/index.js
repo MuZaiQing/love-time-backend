@@ -1,7 +1,7 @@
 const express = require('express');
 const mysql = require('mysql2/promise');
 const cors = require('cors');
-const { v4: uuidv4 } = require('uuid/dist/commonjs/v4.js');
+const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcryptjs');
 
 const app = express();
