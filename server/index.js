@@ -583,9 +583,9 @@ async function startServer() {
     process.exit(1);
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 后端服务已启动，端口: ${PORT} (监听所有 IP，支持局域网访问)`);
-    console.log(`   本机局域网 IP: 10.15.7.8`);
+  const HOST = '0.0.0.0';
+  app.listen(PORT, HOST, () => {
+    console.log(`Server running on http://${HOST}:${PORT}`);
   });
 }
 
