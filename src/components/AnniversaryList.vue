@@ -89,7 +89,7 @@
 <script setup>
 import { CalendarHeart } from 'lucide-vue-next'
 import { useThemeStore } from '@/stores/theme'
-import { formatDate, calculateCountdown } from '@/services/supabase'
+import { formatDate, calculateCountdown } from '@/services/utils'
 
 defineProps({
   anniversaries: {

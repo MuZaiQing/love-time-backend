@@ -2,6 +2,9 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
 export const useUserStore = defineStore('user', () => {
+  // currentUser: { id, username?, anonymous: boolean, avatar?: string|null }
+  //   - anonymous === true  → 匿名用户，id 为 UUID，username 为空
+  //   - anonymous === false → 已登录账号，id 为数字，可能有 username/avatar
   const currentUser = ref(null)
   const currentCouple = ref(null)
   const anniversaries = ref([])
@@ -9,10 +12,22 @@ export const useUserStore = defineStore('user', () => {
   const error = ref(null)
 
   const isLoggedIn = computed(() => !!currentUser.value)
+  const isAnonymousUser = computed(() => {
+    return currentUser.value && currentUser.value.anonymous === true
+  })
   const hasCouple = computed(() => !!currentCouple.value)
 
   function setUser(user) {
     currentUser.value = user
+  }
+
+  function setAvatar(avatar) {
+    if (!currentUser.value) return
+    // 显式构造一个新对象，确保 Pinia ref 触发响应式更新
+    currentUser.value = {
+      ...currentUser.value,
+      avatar: avatar || null
+    }
   }
 
   function setCouple(couple) {
@@ -65,8 +80,10 @@ export const useUserStore = defineStore('user', () => {
     isLoading,
     error,
     isLoggedIn,
+    isAnonymousUser,
     hasCouple,
     setUser,
+    setAvatar,
     setCouple,
     setAnniversaries,
     addAnniversary,

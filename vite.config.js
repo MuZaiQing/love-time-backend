@@ -8,5 +8,16 @@ export default defineConfig({
     alias: {
       '@': '/src'
     }
+  },
+  server: {
+    host: '10.15.7.8', // 强制绑定到局域网IP
+    port: 5173,
+    allowedHosts: true,
+    proxy: {
+      '/api': {
+        target: 'http://10.15.7.8:3000',
+        changeOrigin: true
+      }
+    }
   }
 })

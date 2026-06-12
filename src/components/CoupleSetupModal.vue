@@ -86,8 +86,6 @@ import { ref } from 'vue'
 import { Users, Plus } from 'lucide-vue-next'
 import { useThemeStore } from '@/stores/theme'
 import { useUserStore } from '@/stores/user'
-import { supabase } from '@/services/supabase'
-import { joinCouple } from '@/services/supabase'
 
 const emit = defineEmits(['created'])
 
@@ -99,86 +97,49 @@ const inviteCode = ref('')
 const loading = ref(false)
 const errorMessage = ref('')
 
-// 先绕开登录问题，用硬编码用户ID测试
-const TEST_USER_ID = '452c814f-fec2-44a1-9bfc-96e81cdb3059'
+const API_BASE_URL = '/api'
 
 async function handleCreateCouple() {
   loading.value = true
+  errorMessage.value = ''
   try {
-    const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase()
-    console.log('[handleCreateCouple] 准备插入:', {
+    const code = Math.random().toString(36).substring(2, 8).toUpperCase()
+    const userId = userStore.currentUser?.id
+
+    if (!userId) {
+      throw new Error('用户未登录，请刷新页面重试')
+    }
+
+    console.log('[handleCreateCouple] 准备创建情侣绑定:', {
       startDate: startDate.value,
-      userId: TEST_USER_ID,
-      inviteCode
+      inviteCode: code,
+      userId
     })
 
-    // 直接用项目已有的 Supabase 客户端 API，自动处理会话和令牌
-    const insertResult = await Promise.race([
-      supabase
-        .from('couples')
-        .insert([
-          {
-            start_date: startDate.value,
-            user1_id: TEST_USER_ID,
-            invite_code: inviteCode
-          }
-        ])
-        .select(),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('请求超时')), 10000))
-    ])
+    const response = await fetch(`${API_BASE_URL}/couples`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        start_date: startDate.value,
+        user1_id: userId,
+        invite_code: code
+      })
+    })
 
-    const { data, error } = insertResult
-    if (error) throw error
-    console.log('[handleCreateCouple] 插入成功:', data)
-    alert(`创建成功！邀请码：${inviteCode}`)
+    if (!response.ok) throw new Error(`请求失败: ${response.status}`)
+    const data = await response.json()
+    console.log('[handleCreateCouple] 创建成功:', data)
+    alert(`创建成功！邀请码：${code}`)
+    emit('created', data)
   } catch (err) {
-    console.error('[handleCreateCouple] 插入失败:', err)
+    console.error('[handleCreateCouple] 创建失败:', err)
+    errorMessage.value = err.message || '创建失败，请重试'
     alert(`创建失败：${err.message}`)
   } finally {
-    // 强制复位 loading 状态，按钮不会再卡死
     loading.value = false
     console.log('[handleCreateCouple] loading状态已复位')
-  }
-}
-
-// 控制台调试函数，可直接 window.debugCreateCouple() 调用
-window.debugCreateCouple = async function(startDateValue = '2024-01-01') {
-  console.log('[debugCreateCouple] 开始调试')
-  console.log('[debugCreateCouple] window.supabase 是否存在:', !!window.supabase)
-
-  try {
-    // 硬编码测试用户ID
-    const testUserId = '452c814f-fec2-44a1-9bfc-96e81cdb3059'
-    console.log('[debugCreateCouple] 测试用户ID:', testUserId)
-
-    // 生成邀请码
-    const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase()
-    console.log('[debugCreateCouple] 邀请码:', inviteCode)
-
-    // 插入数据
-    const { data, error } = await window.supabase
-      .from('couples')
-      .insert([
-        {
-          start_date: startDateValue,
-          user1_id: testUserId,
-          invite_code: inviteCode
-        }
-      ])
-      .select()
-
-    if (error) throw error
-
-    console.log('[debugCreateCouple] 创建成功:', data)
-    alert('创建成功！邀请码：' + inviteCode)
-    return { inviteCode, data }
-  } catch (err) {
-    console.error('[debugCreateCouple] 捕获异常:', err)
-    if (err instanceof ReferenceError) {
-      console.error('[debugCreateCouple] ReferenceError:', err.message, err.stack)
-    }
-    alert('调试创建失败：' + (err.message || '未知错误'))
-    throw err
   }
 }
 
@@ -189,12 +150,30 @@ async function handleJoinCouple() {
     return
   }
 
+  const userId = userStore.currentUser?.id
+  if (!userId) {
+    errorMessage.value = '用户未登录，请刷新页面重试'
+    return
+  }
+
   loading.value = true
   errorMessage.value = ''
 
   try {
-    const couple = await joinCouple(code, userStore.currentUser.id)
-    emit('created', couple)
+    const response = await fetch(`${API_BASE_URL}/couples/join`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        invite_code: code,
+        user2_id: userId
+      })
+    })
+
+    if (!response.ok) throw new Error(`请求失败: ${response.status}`)
+    const data = await response.json()
+    emit('created', data)
   } catch (error) {
     errorMessage.value = error.message || '加入失败，请重试'
   } finally {

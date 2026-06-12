@@ -105,7 +105,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { Calendar } from 'lucide-vue-next'
 import { useThemeStore } from '@/stores/theme'
-import { formatDate, getTimeComponents } from '@/services/supabase'
+import { formatDate, getTimeComponents } from '@/services/utils'
 
 const props = defineProps({
   startDate: {

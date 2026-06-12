@@ -1,19 +1,18 @@
 <template>
   <div class="min-h-screen pb-20">
     <div class="max-w-[480px] mx-auto px-4 py-6 space-y-6">
-      <TimerCard 
+      <TimerCard
         v-if="userStore.currentCouple"
         :startDate="userStore.currentCouple.start_date"
         @click="openSettings"
       />
 
-      <CoupleInfo 
+      <CoupleInfo
         v-if="userStore.currentCouple"
-        :user1Id="userStore.currentCouple.user1_id"
-        :user2Id="userStore.currentCouple.user2_id"
+        :partnerAvatar="partnerAvatar"
       />
 
-      <AnniversaryList 
+      <AnniversaryList
         v-if="userStore.currentCouple"
         :anniversaries="userStore.anniversaries"
         @edit="openEditAnniversary"
@@ -32,6 +31,7 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { Plus } from 'lucide-vue-next'
 import TimerCard from '@/components/TimerCard.vue'
 import CoupleInfo from '@/components/CoupleInfo.vue'
@@ -40,6 +40,15 @@ import { useUserStore } from '@/stores/user'
 
 const emit = defineEmits(['openAddAnniversary', 'openEditAnniversary', 'openSettings'])
 const userStore = useUserStore()
+
+// 从 couples/me 返回的 partners 中找到“不是自己”的那一个，取其 avatar
+const partnerAvatar = computed(() => {
+  const couple = userStore.currentCouple
+  if (!couple || !Array.isArray(couple.partners) || couple.partners.length === 0) return ''
+  const myId = userStore.currentUser?.id
+  const partner = couple.partners.find((p) => String(p.id) !== String(myId))
+  return partner?.avatar || ''
+})
 
 function openAddAnniversary() {
   emit('openAddAnniversary')
