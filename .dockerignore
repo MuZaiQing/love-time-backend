@@ -1,9 +1,12 @@
 node_modules/
+**/node_modules/
 .git/
 .env
 .gitignore
 .railwayignore
-package-lock.json.bak
 npm-debug.log
+src/
+dist/
+public/
 Dockerfile
 .dockerignore
