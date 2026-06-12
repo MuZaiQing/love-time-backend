@@ -1,7 +1,7 @@
 const express = require('express');
 const mysql = require('mysql2/promise');
 const cors = require('cors');
-const { v4: uuidv4 } = require('uuid');
+const { v4: uuidv4 } = require('uuid/dist/commonjs/v4.js');
 const bcrypt = require('bcryptjs');
 
 const app = express();
@@ -21,11 +21,7 @@ const pool = mysql.createPool(dbConfig);
 
 // 中间件
 app.use(cors());
-// 提升 JSON 请求体大小限制（base64 头像会产生较大 payload）
-// 默认 100KB，头像上传时容易被中间件拒绝并返回 HTTP 413 (Payload Too Large)
-// 这里设为 5MB（配合前端 < 2MB 的图片限制，以及后端 MEDIUMTEXT 列 16MB 上限，留有足够余量）
 app.use(express.json({ limit: '5mb' }));
-// urlencoded 也同步放宽，避免表单类请求被截断
 app.use(express.urlencoded({ limit: '5mb', extended: true }));
 
 // 初始化数据库表
@@ -33,8 +29,6 @@ async function initTables() {
   try {
     const connection = await pool.getConnection();
     
-    // 创建 users 表（如果不存在）
-    // 头像字段用 MEDIUMTEXT（最大 16MB，兼容 base64 图片）；TEXT 只有 64KB，不足以存常见图片
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS users (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -45,16 +39,12 @@ async function initTables() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
-    // 为历史数据库实例补齐 avatar 列（如果表已存在但缺少该列，或之前是 TEXT/容量不足）
-    // 说明：MySQL 5.x 不支持 ALTER TABLE ... ADD COLUMN IF NOT EXISTS，这里改用 SHOW COLUMNS 做显式判断
     try {
       const [existingCols] = await connection.query(`SHOW COLUMNS FROM users LIKE 'avatar'`);
       if (existingCols.length === 0) {
-        // 列不存在，新增
         await connection.execute(`ALTER TABLE users ADD COLUMN avatar MEDIUMTEXT NULL AFTER password_hash`);
         console.log('✅ users.avatar 列已新增');
       } else {
-        // 列已存在，确保类型是 MEDIUMTEXT（历史库可能是 TEXT，容量不足导致写入失败）
         const colType = (existingCols[0].Type || '').toLowerCase();
         if (colType === 'text' || colType === 'tinytext') {
           await connection.execute(`ALTER TABLE users MODIFY COLUMN avatar MEDIUMTEXT NULL`);
@@ -62,10 +52,9 @@ async function initTables() {
         }
       }
     } catch (alterErr) {
-      console.warn('处理 users.avatar 列时出现非阻塞错误（可忽略）:', alterErr.message);
+      console.warn('处理 users.avatar 列时出现非阻塞错误:', alterErr.message);
     }
     
-    // 创建 couples 表（如果不存在）
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS couples (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -78,7 +67,6 @@ async function initTables() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
-    // 创建 anniversaries 表（如果不存在）
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS anniversaries (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -96,17 +84,16 @@ async function initTables() {
     console.log('✅ 数据库表初始化完成');
   } catch (error) {
     console.error('❌ 数据库表初始化失败:', error.message);
+    console.error('❌ 完整错误信息:', error);
   }
 }
 
-// POST /api/auth/anonymous - 匿名登录
 app.post('/api/auth/anonymous', (req, res) => {
   const userId = uuidv4();
   console.log('匿名登录，用户ID:', userId);
   res.json({ user: { id: userId, anonymous: true } });
 });
 
-// 密码强度校验（后端统一规则，防止绕过前端）
 function validatePasswordStrength(password) {
   if (!password || typeof password !== 'string') {
     return '密码不能为空';
@@ -126,18 +113,15 @@ function validatePasswordStrength(password) {
   if (!/[!@#$%^&*]/.test(password)) {
     return '密码必须包含特殊字符 (!@#$%^&*)';
   }
-  // 禁止纯数字 / 纯字母
   if (/^[0-9]+$/.test(password)) {
     return '密码不能为纯数字';
   }
   if (/^[A-Za-z]+$/.test(password)) {
     return '密码不能为纯字母';
   }
-  // 禁止全相同字符（如 aaaaaaaa）
   if (password.length > 0 && password.split('').every(c => c === password[0])) {
     return '密码不能为相同字符重复';
   }
-  // 禁止连续递增/递减字符（如 abcdef / 123456）
   const normalized = password.toLowerCase();
   for (let i = 0; i <= normalized.length - 4; i++) {
     const a = normalized.charCodeAt(i);
@@ -152,7 +136,6 @@ function validatePasswordStrength(password) {
   return '';
 }
 
-// 用户名校验（后端统一规则）
 function validateUsername(username) {
   if (!username || typeof username !== 'string') {
     return '用户名不能为空';
@@ -170,7 +153,6 @@ function validateUsername(username) {
   return '';
 }
 
-// POST /api/auth/register - 注册账号（支持匿名升级 + 密码强度 + 用户名唯一）
 app.post('/api/auth/register', async (req, res) => {
   const { username, password, anonymousUserId } = req.body;
 
@@ -188,7 +170,6 @@ app.post('/api/auth/register', async (req, res) => {
   try {
     const connection = await pool.getConnection();
 
-    // 检查用户名是否已存在
     const [existingUsers] = await connection.query(
       'SELECT id FROM users WHERE username = ?',
       [normalizedUsername]
@@ -199,14 +180,11 @@ app.post('/api/auth/register', async (req, res) => {
       return res.status(400).json({ error: '该用户名已被注册，请更换其他用户名' });
     }
 
-    // 加密密码
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // 开启事务
     await connection.beginTransaction();
 
     try {
-      // 创建用户
       const [result] = await connection.query(
         'INSERT INTO users (username, password_hash) VALUES (?, ?)',
         [normalizedUsername, passwordHash]
@@ -214,7 +192,6 @@ app.post('/api/auth/register', async (req, res) => {
 
       const newUserId = result.insertId.toString();
 
-      // 如果是匿名用户升级，迁移数据
       if (anonymousUserId) {
         await connection.query(
           'UPDATE couples SET user1_id = ? WHERE user1_id = ?',
@@ -242,7 +219,6 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
-// POST /api/auth/login - 账号登录（区分用户名不存在 / 密码错误）
 app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body;
 
@@ -268,7 +244,6 @@ app.post('/api/auth/login', async (req, res) => {
 
     const user = users[0];
 
-    // 验证密码
     const isValidPassword = await bcrypt.compare(password, user.password_hash);
 
     if (!isValidPassword) {
@@ -283,12 +258,10 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// POST /api/auth/logout - 退出登录
 app.post('/api/auth/logout', (req, res) => {
   res.json({ success: true, message: '退出成功' });
 });
 
-// POST /api/users/:id/avatar - 上传/更新头像（接收 base64 data URL）
 app.post('/api/users/:id/avatar', async (req, res) => {
   const { id } = req.params;
   const { avatar } = req.body || {};
@@ -299,7 +272,6 @@ app.post('/api/users/:id/avatar', async (req, res) => {
   if (!avatar.startsWith('data:image/')) {
     return res.status(400).json({ error: '头像格式必须为 data:image/...;base64' });
   }
-  // 粗略大小限制（约 2MB），与前端保持一致；防止绕过前端校验直接提交大 payload
   if (avatar.length > 2.2 * 1024 * 1024) {
     return res.status(413).json({ error: '头像过大（请选择小于 2MB 的图片）' });
   }
@@ -313,13 +285,11 @@ app.post('/api/users/:id/avatar', async (req, res) => {
     console.log('用户头像已更新:', numericId);
     res.json({ success: true, avatar: avatar });
   } catch (error) {
-    // 把 MySQL/解析层的具体错误原样透传到前端，便于定位
     console.error('头像更新失败:', error);
     res.status(500).json({ error: '头像更新失败: ' + error.message });
   }
 });
 
-// DELETE /api/users/:id/avatar - 恢复默认头像（清空 avatar 字段）
 app.delete('/api/users/:id/avatar', async (req, res) => {
   const { id } = req.params;
   try {
@@ -335,7 +305,6 @@ app.delete('/api/users/:id/avatar', async (req, res) => {
   }
 });
 
-// GET /api/users/:id/avatar - 查询用户头像（返回 base64 或 null）
 app.get('/api/users/:id/avatar', async (req, res) => {
   const { id } = req.params;
   try {
@@ -353,7 +322,6 @@ app.get('/api/users/:id/avatar', async (req, res) => {
   }
 });
 
-// POST /api/couples - 创建情侣绑定
 app.post('/api/couples', async (req, res) => {
   const { start_date, user1_id, invite_code } = req.body;
   if (!start_date || !user1_id || !invite_code) {
@@ -371,7 +339,6 @@ app.post('/api/couples', async (req, res) => {
   }
 });
 
-// POST /api/couples/join - 通过邀请码绑定
 app.post('/api/couples/join', async (req, res) => {
   const { invite_code, user2_id } = req.body;
   if (!invite_code || !user2_id) {
@@ -391,11 +358,6 @@ app.post('/api/couples/join', async (req, res) => {
   }
 });
 
-// GET /api/couples/me - 查询当前用户的绑定关系
-// 返回值：
-//   { id, invite_code, start_date, user1_id, user2_id, created_at, updated_at,
-//     partners: [{ id, avatar, username }, { id, avatar, username }] }
-// 匿名用户不会出现在 users 表中，partners 对匿名用户仅 id，avatar/username 为 null
 app.get('/api/couples/me', async (req, res) => {
   const userId = req.query.user_id || req.headers['x-user-id'];
 
@@ -415,7 +377,6 @@ app.get('/api/couples/me', async (req, res) => {
 
     const couple = couples[0];
 
-    // 为两个 user_id 查询头像（users 表中只有账号用户存在；匿名用户 id 为 UUID，查不到）
     const partnerIds = [couple.user1_id, couple.user2_id];
     let partnersRows = [];
     try {
@@ -425,12 +386,10 @@ app.get('/api/couples/me', async (req, res) => {
         partnerIds
       );
     } catch (sqlErr) {
-      // partnersRows 为空数组时，前端会用默认头像占位，不阻断主流程
       console.warn('partners 查询失败，继续返回 couple 基础信息:', sqlErr.message);
       partnersRows = [];
     }
 
-    // 把 partnersRows 按 user_id 映射成对象，便于前端直接索引
     const byId = {};
     for (const row of partnersRows) {
       byId[String(row.id)] = row;
@@ -441,7 +400,6 @@ app.get('/api/couples/me', async (req, res) => {
       if (row) {
         return { id: String(row.id), username: row.username || null, avatar: row.avatar || null };
       }
-      // 匿名用户：id 为 UUID，users 表中不存在
       return { id: pid, username: null, avatar: null, anonymous: true };
     });
 
@@ -462,7 +420,6 @@ app.get('/api/couples/me', async (req, res) => {
   }
 });
 
-// PUT /api/couples/:id - 更新情侣绑定信息（例如 start_date）
 app.put('/api/couples/:id', async (req, res) => {
   const { id } = req.params;
   const { start_date } = req.body;
@@ -489,7 +446,6 @@ app.put('/api/couples/:id', async (req, res) => {
   }
 });
 
-// GET /api/anniversaries - 根据 coupleId 获取纪念日列表
 app.get('/api/anniversaries', async (req, res) => {
   const { coupleId } = req.query;
   if (!coupleId) {
@@ -506,7 +462,6 @@ app.get('/api/anniversaries', async (req, res) => {
   }
 });
 
-// POST /api/anniversaries - 创建纪念日
 app.post('/api/anniversaries', async (req, res) => {
   const { couple_id, name, date, type } = req.body;
   if (!couple_id || !name || !date) {
@@ -524,7 +479,6 @@ app.post('/api/anniversaries', async (req, res) => {
   }
 });
 
-// PUT /api/anniversaries/:id - 更新纪念日
 app.put('/api/anniversaries/:id', async (req, res) => {
   const { id } = req.params;
   const { name, date, type } = req.body;
@@ -550,7 +504,6 @@ app.put('/api/anniversaries/:id', async (req, res) => {
   }
 });
 
-// DELETE /api/anniversaries/:id - 删除纪念日
 app.delete('/api/anniversaries/:id', async (req, res) => {
   const { id } = req.params;
   try {
@@ -565,28 +518,38 @@ app.delete('/api/anniversaries/:id', async (req, res) => {
   }
 });
 
-// GET /api/health - 健康检查
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// 启动服务
 async function startServer() {
-  await initTables();
+  console.log('🚀 正在启动后端服务...');
   
-  try {
-    const connection = await pool.getConnection();
-    console.log('✅ 数据库连接成功');
-    connection.release();
-  } catch (error) {
-    console.error('❌ 数据库连接失败:', error.message);
-    process.exit(1);
+  if (!process.env.DB_HOST || process.env.DB_HOST === 'localhost') {
+    console.warn('⚠️ 警告：未配置数据库连接（DB_HOST）或使用 localhost，数据库相关功能将不可用');
+    console.warn('⚠️ 如需使用完整功能，请在 Railway 配置环境变量：DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME');
+  } else {
+    await initTables();
+    
+    try {
+      const connection = await pool.getConnection();
+      console.log('✅ 数据库连接成功');
+      connection.release();
+    } catch (error) {
+      console.error('❌ 数据库连接失败:', error.message);
+      console.error('❌ 完整错误信息:', error);
+      console.warn('⚠️ 服务将继续启动，但数据库相关功能不可用');
+    }
   }
 
   const HOST = '0.0.0.0';
   app.listen(PORT, HOST, () => {
-    console.log(`Server running on http://${HOST}:${PORT}`);
+    console.log(`✅ Server running on http://${HOST}:${PORT}`);
+    console.log(`📡 健康检查接口: http://${HOST}:${PORT}/api/health`);
   });
 }
 
-startServer().catch(console.error);
+startServer().catch((error) => {
+  console.error('❌ 服务启动失败:', error);
+  process.exit(1);
+});
