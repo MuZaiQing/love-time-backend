@@ -1,20 +1,21 @@
 {
-  "name": "lovetime",
+  "name": "lovetime-backend",
   "version": "1.0.0",
-  "type": "module",
+  "description": "LoveTime Node.js/Express backend API",
+  "main": "server/index.js",
+  "type": "commonjs",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "start": "node server/index.js",
+    "dev": "node server/index.js"
   },
   "dependencies": {
-    "lucide-vue-next": "^1.0.0",
-    "pinia": "^2.1.7",
-    "vue": "^3.4.21"
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "mysql2": "^3.9.0",
+    "uuid": "^9.0.1"
   },
-  "devDependencies": {
-    "@tailwindcss/vite": "^4.0.14",
-    "@vitejs/plugin-vue": "^6.0.7",
-    "vite": "^5.1.4"
-  }
+  "keywords": ["express", "api", "backend"],
+  "author": "",
+  "license": "MIT"
 }
